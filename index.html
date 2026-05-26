@@ -1,0 +1,826 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Draft Board</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #0b1018;
+      --panel: #111926;
+      --panel2: #182234;
+      --ink: #f8fafc;
+      --muted: #93a4b8;
+      --line: #273447;
+      --green: #00ceb8;
+      --green2: #0aa677;
+      --blue: #4da3ff;
+      --red: #ff4d6d;
+      --gold: #f5b84b;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background:
+        radial-gradient(circle at top left, rgba(0, 206, 184, 0.16), transparent 28rem),
+        linear-gradient(180deg, #0d1420 0%, var(--bg) 38%, #080c12 100%);
+      color: var(--ink);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+    button, input, select {
+      font: inherit;
+      color: var(--ink);
+    }
+    header {
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: max(12px, env(safe-area-inset-top)) 14px 12px;
+      background: rgba(11, 16, 24, 0.92);
+      backdrop-filter: blur(16px);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    }
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      min-width: 0;
+    }
+    .mark {
+      width: 34px;
+      height: 34px;
+      border-radius: 10px;
+      background: linear-gradient(135deg, var(--green), #1d4ed8);
+      display: grid;
+      place-items: center;
+      font-weight: 950;
+      color: #04111a;
+    }
+    h1 {
+      margin: 0;
+      font-size: 18px;
+      line-height: 1.05;
+      letter-spacing: 0;
+    }
+    .subtitle {
+      margin-top: 2px;
+      color: var(--muted);
+      font-size: 12px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 54vw;
+    }
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      min-height: 28px;
+      padding: 4px 10px;
+      border-radius: 999px;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      background: rgba(255, 255, 255, 0.06);
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 800;
+      white-space: nowrap;
+    }
+    .pill.green {
+      color: #05201d;
+      background: var(--green);
+      border-color: var(--green);
+    }
+    main {
+      width: min(1180px, 100%);
+      margin: 0 auto;
+      display: grid;
+      grid-template-columns: 360px minmax(0, 1fr);
+      gap: 12px;
+      padding: 12px;
+      padding-bottom: max(22px, env(safe-area-inset-bottom));
+    }
+    section {
+      background: rgba(17, 25, 38, 0.92);
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      box-shadow: 0 18px 48px rgba(0, 0, 0, 0.25);
+      overflow: hidden;
+    }
+    .section-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      padding: 13px 14px;
+      border-bottom: 1px solid var(--line);
+      background: rgba(255, 255, 255, 0.025);
+    }
+    h2 {
+      margin: 0;
+      font-size: 13px;
+      letter-spacing: 0;
+      text-transform: uppercase;
+      color: #d7e1ed;
+    }
+    .body {
+      padding: 12px;
+    }
+    .stack {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    .unlock {
+      min-height: calc(100vh - 72px);
+      display: grid;
+      place-items: center;
+      padding: 22px;
+    }
+    .unlock-card {
+      width: min(430px, 100%);
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      padding: 18px;
+      box-shadow: 0 24px 70px rgba(0, 0, 0, 0.38);
+    }
+    .unlock-card h1 {
+      font-size: 24px;
+      margin-bottom: 8px;
+    }
+    .unlock-card p {
+      color: var(--muted);
+      margin: 0 0 14px;
+      line-height: 1.45;
+      font-size: 14px;
+    }
+    label {
+      display: block;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 800;
+      margin-bottom: 6px;
+    }
+    input, select {
+      width: 100%;
+      min-height: 44px;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: #0d1521;
+      padding: 10px 12px;
+      outline: none;
+    }
+    select {
+      appearance: none;
+      background-image: linear-gradient(45deg, transparent 50%, var(--muted) 50%), linear-gradient(135deg, var(--muted) 50%, transparent 50%);
+      background-position: calc(100% - 17px) 18px, calc(100% - 12px) 18px;
+      background-size: 5px 5px, 5px 5px;
+      background-repeat: no-repeat;
+      padding-right: 30px;
+    }
+    button {
+      min-height: 44px;
+      border: 0;
+      border-radius: 12px;
+      background: var(--panel2);
+      color: var(--ink);
+      padding: 10px 12px;
+      font-weight: 900;
+      cursor: pointer;
+    }
+    button.primary {
+      background: var(--green);
+      color: #061714;
+    }
+    button.danger {
+      background: rgba(255, 77, 109, 0.18);
+      color: #ffb3c0;
+      border: 1px solid rgba(255, 77, 109, 0.35);
+    }
+    .button-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      margin-top: 10px;
+    }
+    .tabs {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 6px;
+      padding: 6px;
+      background: #0d1521;
+      border-radius: 14px;
+      border: 1px solid var(--line);
+    }
+    .tab {
+      min-height: 36px;
+      border-radius: 10px;
+      background: transparent;
+      color: var(--muted);
+      padding: 8px;
+      font-size: 13px;
+    }
+    .tab.active {
+      background: var(--panel2);
+      color: var(--ink);
+    }
+    .slot-grid {
+      display: grid;
+      gap: 8px;
+    }
+    .slot-row {
+      display: grid;
+      grid-template-columns: 38px minmax(0, 1fr);
+      gap: 8px;
+      align-items: center;
+    }
+    .slot-num {
+      width: 38px;
+      height: 38px;
+      border-radius: 12px;
+      display: grid;
+      place-items: center;
+      background: #0d1521;
+      border: 1px solid var(--line);
+      color: var(--muted);
+      font-weight: 950;
+    }
+    .clock {
+      min-height: 116px;
+      padding: 16px;
+      background:
+        linear-gradient(135deg, rgba(0, 206, 184, 0.2), rgba(77, 163, 255, 0.08)),
+        #101827;
+      border: 1px solid var(--line);
+      border-radius: 16px;
+    }
+    .clock.mine {
+      border-color: rgba(0, 206, 184, 0.75);
+      box-shadow: 0 0 0 1px rgba(0, 206, 184, 0.2), 0 20px 50px rgba(0, 206, 184, 0.08);
+    }
+    .clock .pick {
+      color: var(--green);
+      font-size: 12px;
+      font-weight: 900;
+      text-transform: uppercase;
+    }
+    .clock .name {
+      margin-top: 8px;
+      font-size: 32px;
+      line-height: 1;
+      font-weight: 950;
+      overflow-wrap: anywhere;
+    }
+    .clock .meta {
+      margin-top: 10px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+    .metrics {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 8px;
+    }
+    .metric {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      padding: 12px;
+    }
+    .metric strong {
+      display: block;
+      font-size: 23px;
+      line-height: 1;
+    }
+    .metric span {
+      display: block;
+      margin-top: 5px;
+      color: var(--muted);
+      font-size: 11px;
+      font-weight: 800;
+      text-transform: uppercase;
+    }
+    .list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .item {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 10px;
+      align-items: center;
+      padding: 10px;
+      background: #0d1521;
+      border: 1px solid var(--line);
+      border-radius: 14px;
+    }
+    .item.mine {
+      border-color: rgba(0, 206, 184, 0.6);
+      background: rgba(0, 206, 184, 0.08);
+    }
+    .player {
+      font-size: 15px;
+      font-weight: 950;
+      line-height: 1.15;
+      overflow-wrap: anywhere;
+    }
+    .sub {
+      margin-top: 3px;
+      color: var(--muted);
+      font-size: 12px;
+      overflow-wrap: anywhere;
+    }
+    .tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 5px;
+      margin-top: 7px;
+    }
+    .tag {
+      display: inline-flex;
+      align-items: center;
+      min-height: 23px;
+      padding: 3px 8px;
+      border-radius: 999px;
+      border: 1px solid var(--line);
+      background: rgba(255, 255, 255, 0.05);
+      color: var(--muted);
+      font-size: 11px;
+      font-weight: 850;
+      white-space: nowrap;
+    }
+    .tag.green {
+      color: #061714;
+      background: var(--green);
+      border-color: var(--green);
+    }
+    .tag.blue {
+      color: #cfe7ff;
+      background: rgba(77, 163, 255, 0.17);
+      border-color: rgba(77, 163, 255, 0.34);
+    }
+    .tag.gold {
+      color: #ffe3a9;
+      background: rgba(245, 184, 75, 0.14);
+      border-color: rgba(245, 184, 75, 0.36);
+    }
+    .board {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 8px;
+    }
+    .pick-card {
+      min-height: 92px;
+      border-radius: 14px;
+      border: 1px solid var(--line);
+      background: #0d1521;
+      padding: 10px;
+    }
+    .pick-card.mine {
+      border-color: rgba(0, 206, 184, 0.68);
+      background: rgba(0, 206, 184, 0.08);
+    }
+    .pick-card.taken {
+      opacity: 0.56;
+    }
+    .hidden {
+      display: none !important;
+    }
+    .empty {
+      padding: 12px;
+      color: var(--muted);
+      text-align: center;
+    }
+    @media (max-width: 860px) {
+      main {
+        grid-template-columns: 1fr;
+        padding: 10px;
+      }
+      .clock .name {
+        font-size: 28px;
+      }
+      .board {
+        grid-template-columns: 1fr;
+      }
+      .subtitle {
+        max-width: 66vw;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div id="unlock" class="unlock">
+    <div class="unlock-card">
+      <div class="brand" style="margin-bottom:14px;">
+        <div class="mark">D</div>
+        <div>
+          <h1>Draft Board</h1>
+          <div class="subtitle">Private static room</div>
+        </div>
+      </div>
+      <p>Enter the room key to unlock the draft data on this device.</p>
+      <label for="roomKey">Room key</label>
+      <input id="roomKey" type="password" autocomplete="current-password" placeholder="Enter key">
+      <button id="unlockBtn" class="primary" style="margin-top:10px;">Unlock Room</button>
+      <div id="unlockError" class="sub"></div>
+    </div>
+  </div>
+
+  <div id="app" class="hidden">
+    <header>
+      <div class="brand">
+        <div class="mark">D</div>
+        <div>
+          <h1>Draft Board</h1>
+          <div id="leagueLine" class="subtitle">Room loaded</div>
+        </div>
+      </div>
+      <span id="status" class="pill green">Ready</span>
+    </header>
+
+    <main>
+      <aside class="stack">
+        <section>
+          <div class="section-head">
+            <h2>Draft Slots</h2>
+            <span class="pill" id="formatPill">Snake</span>
+          </div>
+          <div class="body">
+            <div id="slotGrid" class="slot-grid"></div>
+            <label for="myTeam" style="margin-top:12px;">My team</label>
+            <select id="myTeam"></select>
+            <div class="button-row">
+              <button class="primary" id="setDraft">Set Draft</button>
+              <button id="resetDraft">Reset</button>
+            </div>
+          </div>
+        </section>
+
+        <section>
+          <div class="section-head">
+            <h2>Make Pick</h2>
+            <span class="pill" id="availableCount">0 avail</span>
+          </div>
+          <div class="body">
+            <label for="pickSelect">Player</label>
+            <select id="pickSelect"></select>
+            <button id="draftPlayer" class="primary" style="margin-top:8px;">Draft Player</button>
+            <button id="undoPick" class="danger" style="margin-top:8px;">Undo Last Pick</button>
+          </div>
+        </section>
+
+        <section>
+          <div class="section-head">
+            <h2>Target</h2>
+            <span class="pill green" id="targetPill">Validated</span>
+          </div>
+          <div class="body" id="backtest"></div>
+        </section>
+      </aside>
+
+      <div class="stack">
+        <section>
+          <div class="body">
+            <div id="clock" class="clock">
+              <div class="pick" id="clockPick">Overall 1</div>
+              <div class="name" id="clockName">Set draft</div>
+              <div class="meta" id="clockMeta">Assign slots to start</div>
+            </div>
+          </div>
+        </section>
+
+        <section>
+          <div class="body">
+            <div class="metrics">
+              <div class="metric"><strong id="takenCount">0</strong><span>Taken</span></div>
+              <div class="metric"><strong id="nextMine">-</strong><span>Until Me</span></div>
+              <div class="metric"><strong id="roundNow">1</strong><span>Round</span></div>
+            </div>
+          </div>
+        </section>
+
+        <section>
+          <div class="section-head">
+            <h2>Tabs</h2>
+          </div>
+          <div class="body">
+            <div class="tabs">
+              <button class="tab active" data-view="queue">Queue</button>
+              <button class="tab" data-view="mine">My Picks</button>
+              <button class="tab" data-view="board">Board</button>
+            </div>
+          </div>
+        </section>
+
+        <section id="queueView">
+          <div class="section-head">
+            <h2>On Deck</h2>
+            <span class="pill">Next 8</span>
+          </div>
+          <div class="body">
+            <div id="queue" class="list"></div>
+          </div>
+        </section>
+
+        <section id="mineView" class="hidden">
+          <div class="section-head">
+            <h2>My Picks</h2>
+            <span class="pill green">Projected</span>
+          </div>
+          <div class="body">
+            <div id="myPicks" class="list"></div>
+          </div>
+        </section>
+
+        <section id="boardView" class="hidden">
+          <div class="section-head">
+            <h2>Draft Board</h2>
+            <span class="pill">160 picks</span>
+          </div>
+          <div class="body">
+            <div id="board" class="board"></div>
+          </div>
+        </section>
+      </div>
+    </main>
+  </div>
+
+  <script>
+    const state = { mock: null, backtest: null, order: [], myUserId: '', taken: [], view: 'queue' };
+    const $ = (id) => document.getElementById(id);
+    const esc = (value) => String(value ?? '').replace(/[&<>"']/g, (ch) => ({
+      '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+    }[ch]));
+    const tags = (items, kind = '') => `<div class="tags">${(items || []).map((item) => `<span class="tag ${kind}">${esc(item)}</span>`).join('')}</div>`;
+    const playerLine = (pick) => `<div class="player">${esc(pick.name)}</div><div class="sub">${esc(pick.position || '-')} · ${esc(pick.team || '-')}</div>`;
+    const b64 = (value) => Uint8Array.from(atob(value), (ch) => ch.charCodeAt(0));
+
+    async function unlockPayload(passphrase) {
+      const payload = await fetch('./data/payload.json', { cache: 'no-store' }).then((res) => res.json());
+      const keyMaterial = await crypto.subtle.importKey(
+        'raw',
+        new TextEncoder().encode(passphrase),
+        'PBKDF2',
+        false,
+        ['deriveKey']
+      );
+      const key = await crypto.subtle.deriveKey(
+        { name: 'PBKDF2', salt: b64(payload.salt), iterations: payload.iterations, hash: 'SHA-256' },
+        keyMaterial,
+        { name: 'AES-GCM', length: 256 },
+        false,
+        ['decrypt']
+      );
+      const decrypted = await crypto.subtle.decrypt(
+        { name: 'AES-GCM', iv: b64(payload.iv) },
+        key,
+        b64(payload.ciphertext)
+      );
+      return JSON.parse(new TextDecoder().decode(decrypted));
+    }
+
+    function managerName(uid) {
+      const manager = (state.mock.draft_order || []).find((item) => item.user_id === uid);
+      return manager ? manager.name : uid;
+    }
+
+    function managerOptions(selected = '') {
+      return (state.mock.draft_order || []).map((manager) => (
+        `<option value="${esc(manager.user_id)}" ${manager.user_id === selected ? 'selected' : ''}>${esc(manager.name)}</option>`
+      )).join('');
+    }
+
+    function managerForPick(index) {
+      const teams = state.order.length;
+      if (!teams) return '';
+      const roundZero = Math.floor(index / teams);
+      const pickInRound = index % teams;
+      return roundZero % 2 === 0 ? state.order[pickInRound] : state.order[teams - pickInRound - 1];
+    }
+
+    function nextMine() {
+      for (let idx = state.taken.length; idx < state.order.length * 16; idx += 1) {
+        if (managerForPick(idx) === state.myUserId) return idx - state.taken.length;
+      }
+      return null;
+    }
+
+    function setStatus(text, good = true) {
+      $('status').textContent = text;
+      $('status').className = `pill ${good ? 'green' : ''}`;
+    }
+
+    function renderSlots() {
+      const order = state.mock.draft_order || [];
+      $('slotGrid').innerHTML = order.map((manager) => `
+        <div class="slot-row">
+          <div class="slot-num">${manager.slot}</div>
+          <select class="slotSelect" data-slot="${manager.slot}">${managerOptions(manager.user_id)}</select>
+        </div>
+      `).join('');
+      $('myTeam').innerHTML = managerOptions(state.mock.my_user_id);
+      $('myTeam').value = state.mock.my_user_id;
+    }
+
+    function setDraftFromSlots() {
+      const ids = Array.from(document.querySelectorAll('.slotSelect'))
+        .sort((a, b) => Number(a.dataset.slot) - Number(b.dataset.slot))
+        .map((select) => select.value);
+      if (new Set(ids).size !== ids.length) {
+        setStatus('Duplicate slot', false);
+        return;
+      }
+      state.order = ids;
+      state.myUserId = $('myTeam').value || state.mock.my_user_id;
+      state.taken = [];
+      render();
+      setStatus('Draft set');
+    }
+
+    function availablePicks() {
+      const used = new Set(state.taken.map((pick) => pick.player_id));
+      return (state.mock.picks || []).filter((pick) => !used.has(pick.player_id));
+    }
+
+    function draftSelectedPlayer() {
+      if (!state.order.length) setDraftFromSlots();
+      const pid = $('pickSelect').value;
+      const pick = availablePicks().find((item) => item.player_id === pid);
+      if (!pick) return;
+      const idx = state.taken.length;
+      const manager = managerForPick(idx);
+      const teams = state.order.length;
+      state.taken.push({
+        ...pick,
+        overall: idx + 1,
+        round: Math.floor(idx / teams) + 1,
+        pick: (idx % teams) + 1,
+        manager_user_id: manager,
+        manager_name: managerName(manager)
+      });
+      render();
+    }
+
+    function renderPickSelect() {
+      const used = new Set(state.taken.map((pick) => pick.player_id));
+      const available = (state.mock.picks || []).filter((pick) => !used.has(pick.player_id));
+      $('pickSelect').innerHTML = available.map((pick) => (
+        `<option value="${esc(pick.player_id)}">${esc(pick.name)} · ${esc(pick.position || '-')} ${esc(pick.team || '')}</option>`
+      )).join('');
+      $('availableCount').textContent = `${available.length} avail`;
+    }
+
+    function renderClock() {
+      const idx = state.taken.length;
+      const teams = state.order.length || (state.mock.draft_order || []).length;
+      const manager = state.order.length ? managerForPick(idx) : '';
+      const round = teams ? Math.floor(idx / teams) + 1 : 1;
+      const pick = teams ? (idx % teams) + 1 : 1;
+      $('clock').classList.toggle('mine', manager === state.myUserId);
+      $('clockPick').textContent = `Overall ${idx + 1} · Round ${round}, Pick ${pick}`;
+      $('clockName').textContent = manager ? managerName(manager) : 'Assign slots';
+      $('clockMeta').textContent = manager === state.myUserId ? 'You are on the clock' : 'Draft room active';
+      $('takenCount').textContent = state.taken.length;
+      $('nextMine').textContent = nextMine() ?? '-';
+      $('roundNow').textContent = round;
+    }
+
+    function renderQueue() {
+      const items = [];
+      for (let idx = state.taken.length; idx < Math.min(state.taken.length + 8, state.order.length * 16); idx += 1) {
+        const manager = managerForPick(idx);
+        items.push({ idx, manager });
+      }
+      $('queue').innerHTML = items.map(({ idx, manager }) => `
+        <div class="item ${manager === state.myUserId ? 'mine' : ''}">
+          <div>
+            <div class="player">${esc(managerName(manager))}</div>
+            <div class="sub">#${idx + 1} · R${Math.floor(idx / state.order.length) + 1}.${(idx % state.order.length) + 1}</div>
+          </div>
+          <span class="tag ${manager === state.myUserId ? 'green' : 'blue'}">${manager === state.myUserId ? 'you' : 'next'}</span>
+        </div>
+      `).join('') || '<div class="empty">Set draft slots</div>';
+    }
+
+    function renderMyPicks() {
+      $('myPicks').innerHTML = (state.mock.my_picks || []).map((pick) => `
+        <div class="item">
+          <div>
+            <div class="sub">#${pick.overall} · R${pick.round}.${pick.pick}</div>
+            ${playerLine(pick)}
+            ${tags((pick.reason || []).slice(0, 3), 'blue')}
+          </div>
+          <span class="tag green">${Number(pick.score || 0).toFixed(2)}</span>
+        </div>
+      `).join('');
+    }
+
+    function renderBoard() {
+      const takenByOverall = new Map(state.taken.map((pick) => [pick.overall, pick]));
+      $('board').innerHTML = (state.mock.picks || []).slice(0, 160).map((templatePick) => {
+        const pick = takenByOverall.get(templatePick.overall) || templatePick;
+        const taken = takenByOverall.has(templatePick.overall);
+        const mine = pick.manager_user_id === state.myUserId;
+        return `
+          <div class="pick-card ${mine ? 'mine' : ''} ${taken ? 'taken' : ''}">
+            <div class="sub">#${templatePick.overall} · R${templatePick.round}.${templatePick.pick}</div>
+            <div class="player">${esc(pick.manager_name || templatePick.manager_name)}</div>
+            ${playerLine(pick)}
+          </div>
+        `;
+      }).join('');
+    }
+
+    function renderBacktest() {
+      const target = state.backtest.target || {};
+      const outcome = state.backtest.outcome || {};
+      const achieved = !!target.achieved;
+      $('targetPill').textContent = achieved ? 'Hit' : 'Miss';
+      $('targetPill').className = `pill ${achieved ? 'green' : ''}`;
+      $('backtest').innerHTML = `
+        <div class="item">
+          <div>
+            <div class="player">${Number(target.actual_points_per_week || 0).toFixed(2)} pts/week</div>
+            <div class="sub">vs ${esc(target.baseline || 'baseline')}</div>
+            ${tags([
+              `goal +${Number(target.target_points_per_week || 12).toFixed(1)}`,
+              `ADP ${Number(target.adp_delta_points_per_week || 0).toFixed(2)}`,
+              `engine ${Number(outcome.average_engine_points || 0).toFixed(2)}`
+            ], achieved ? 'green' : 'gold')}
+          </div>
+          <span class="tag ${achieved ? 'green' : 'gold'}">${achieved ? 'validated' : 'watch'}</span>
+        </div>
+      `;
+    }
+
+    function setView(view) {
+      state.view = view;
+      document.querySelectorAll('.tab').forEach((tab) => tab.classList.toggle('active', tab.dataset.view === view));
+      $('queueView').classList.toggle('hidden', view !== 'queue');
+      $('mineView').classList.toggle('hidden', view !== 'mine');
+      $('boardView').classList.toggle('hidden', view !== 'board');
+    }
+
+    function renderMeta() {
+      const rules = state.mock.league_rules || {};
+      const settings = state.mock.settings || {};
+      $('leagueLine').textContent = `${settings.teams} teams · ${settings.rounds} rounds · ${(rules.scoring_highlights || []).join(', ')}`;
+      $('formatPill').textContent = settings.linear ? 'Linear' : 'Snake';
+    }
+
+    function render() {
+      renderPickSelect();
+      renderClock();
+      renderQueue();
+      renderMyPicks();
+      renderBoard();
+      renderBacktest();
+      setView(state.view);
+    }
+
+    async function boot(data) {
+      state.mock = data.mock;
+      state.backtest = data.backtest;
+      state.order = (state.mock.draft_order || []).map((item) => item.user_id);
+      state.myUserId = state.mock.my_user_id;
+      renderSlots();
+      renderMeta();
+      render();
+      $('unlock').classList.add('hidden');
+      $('app').classList.remove('hidden');
+      setStatus('Ready');
+    }
+
+    $('unlockBtn').addEventListener('click', async () => {
+      $('unlockError').textContent = '';
+      try {
+        const data = await unlockPayload($('roomKey').value);
+        await boot(data);
+      } catch (err) {
+        $('unlockError').textContent = 'Could not unlock room. Check the key.';
+      }
+    });
+    $('roomKey').addEventListener('keydown', (event) => {
+      if (event.key === 'Enter') $('unlockBtn').click();
+    });
+    $('setDraft').addEventListener('click', setDraftFromSlots);
+    $('resetDraft').addEventListener('click', () => {
+      state.taken = [];
+      renderSlots();
+      setDraftFromSlots();
+    });
+    $('draftPlayer').addEventListener('click', draftSelectedPlayer);
+    $('undoPick').addEventListener('click', () => {
+      state.taken.pop();
+      render();
+    });
+    document.querySelectorAll('.tab').forEach((tab) => tab.addEventListener('click', () => setView(tab.dataset.view)));
+  </script>
+</body>
+</html>
