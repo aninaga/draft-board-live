@@ -210,15 +210,25 @@
       color: #ffb3c0;
       border: 1px solid rgba(255, 77, 109, 0.35);
     }
+    button:disabled {
+      opacity: 0.48;
+      cursor: not-allowed;
+    }
     .button-row {
       display: grid;
       grid-template-columns: 1fr 1fr;
       gap: 8px;
       margin-top: 10px;
     }
+    .slot-tools {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      margin-top: 12px;
+    }
     .pick-buttons {
       display: grid;
-      grid-template-columns: minmax(0, 1fr) auto;
+      grid-template-columns: minmax(0, 1fr) 78px 78px 70px;
       gap: 8px;
       margin-top: 8px;
     }
@@ -672,7 +682,7 @@
         min-height: 40px;
       }
       .pick-buttons {
-        grid-template-columns: minmax(0, 1fr) 92px;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
       }
     }
   </style>
@@ -718,6 +728,16 @@
             <div id="slotGrid" class="slot-grid"></div>
             <label for="myTeam" style="margin-top:12px;">My team</label>
             <select id="myTeam"></select>
+            <div class="slot-tools">
+              <div>
+                <label for="mySlot">My slot</label>
+                <select id="mySlot"></select>
+              </div>
+              <div>
+                <label>&nbsp;</label>
+                <button id="randomizeSlots">Randomize</button>
+              </div>
+            </div>
             <div class="button-row">
               <button class="primary" id="setDraft">Set Draft</button>
               <button id="resetDraft">Reset</button>
@@ -735,6 +755,8 @@
               <select id="pickSelect"></select>
               <div class="pick-buttons">
                 <button id="draftPlayer" class="primary">Draft Player</button>
+                <button id="autoOne">Auto</button>
+                <button id="simToMe">To Me</button>
                 <button id="undoPick" class="danger">Undo</button>
               </div>
             </div>
@@ -746,6 +768,14 @@
             <span class="pill green" id="targetPill">Validated</span>
           </div>
           <div class="body" id="backtest"></div>
+        </section>
+
+        <section>
+          <div class="section-head">
+            <h2>Test Set</h2>
+            <span class="pill" id="evalPill">Holdout</span>
+          </div>
+          <div class="body" id="evaluation"></div>
         </section>
       </aside>
 
@@ -815,7 +845,7 @@
   </div>
 
   <script>
-    const state = { mock: null, backtest: null, order: [], myUserId: '', taken: [], view: 'board' };
+    const state = { mock: null, backtest: null, evaluation: null, order: [], myUserId: '', taken: [], view: 'board' };
     const $ = (id) => document.getElementById(id);
     const esc = (value) => String(value ?? '').replace(/[&<>"']/g, (ch) => ({
       '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
@@ -828,6 +858,30 @@
       if (!scroller || !item) return;
       const left = item.offsetLeft - ((scroller.clientWidth - item.clientWidth) / 2);
       scroller.scrollTo({ left: Math.max(0, left), behavior: 'smooth' });
+    }
+    function totalRounds() {
+      return Number(state.mock?.settings?.rounds || 16);
+    }
+    function totalPicks() {
+      return (state.order.length || (state.mock?.draft_order || []).length || 0) * totalRounds();
+    }
+    function roundPickForIndex(index) {
+      const teams = state.order.length || 1;
+      return {
+        round: Math.floor(index / teams) + 1,
+        pick: (index % teams) + 1
+      };
+    }
+    function shuffle(items) {
+      const out = [...items];
+      const random = new Uint32Array(out.length);
+      if (crypto.getRandomValues) crypto.getRandomValues(random);
+      for (let i = out.length - 1; i > 0; i -= 1) {
+        const seed = random[i] || Math.floor(Math.random() * 2 ** 32);
+        const j = seed % (i + 1);
+        [out[i], out[j]] = [out[j], out[i]];
+      }
+      return out;
     }
 
     async function unlockPayload(passphrase) {
@@ -874,7 +928,7 @@
     }
 
     function nextMine() {
-      for (let idx = state.taken.length; idx < state.order.length * 16; idx += 1) {
+      for (let idx = state.taken.length; idx < totalPicks(); idx += 1) {
         if (managerForPick(idx) === state.myUserId) return idx - state.taken.length;
       }
       return null;
@@ -886,15 +940,22 @@
     }
 
     function renderSlots() {
-      const order = state.mock.draft_order || [];
-      $('slotGrid').innerHTML = order.map((manager) => `
+      const managers = state.mock.draft_order || [];
+      const order = state.order.length ? state.order : managers.map((manager) => manager.user_id);
+      $('slotGrid').innerHTML = order.map((uid, index) => `
         <div class="slot-row">
-          <div class="slot-num">${manager.slot}</div>
-          <select class="slotSelect" data-slot="${manager.slot}">${managerOptions(manager.user_id)}</select>
+          <div class="slot-num">${index + 1}</div>
+          <select class="slotSelect" data-slot="${index + 1}">${managerOptions(uid)}</select>
         </div>
       `).join('');
-      $('myTeam').innerHTML = managerOptions(state.mock.my_user_id);
-      $('myTeam').value = state.mock.my_user_id;
+      $('myTeam').innerHTML = managerOptions(state.myUserId || state.mock.my_user_id);
+      $('myTeam').value = state.myUserId || state.mock.my_user_id;
+      const teams = managers.length;
+      $('mySlot').innerHTML = Array.from({ length: teams }, (_, idx) => (
+        `<option value="${idx + 1}">Slot ${idx + 1}</option>`
+      )).join('');
+      const slot = Math.max(1, order.indexOf($('myTeam').value) + 1);
+      $('mySlot').value = String(slot);
     }
 
     function setDraftFromSlots() {
@@ -908,41 +969,131 @@
       state.order = ids;
       state.myUserId = $('myTeam').value || state.mock.my_user_id;
       state.taken = [];
+      renderSlots();
       render();
       setStatus('Draft set');
     }
 
+    function randomizeSlots() {
+      const managers = (state.mock.draft_order || []).map((manager) => manager.user_id);
+      if (!managers.length) return;
+      const myUserId = $('myTeam').value || state.mock.my_user_id;
+      const slot = Math.max(1, Math.min(managers.length, Number($('mySlot').value || 1))) - 1;
+      const others = shuffle(managers.filter((uid) => uid !== myUserId));
+      const order = Array(managers.length);
+      order[slot] = myUserId;
+      let cursor = 0;
+      for (let idx = 0; idx < order.length; idx += 1) {
+        if (!order[idx]) order[idx] = others[cursor++];
+      }
+      state.order = order;
+      state.myUserId = myUserId;
+      state.taken = [];
+      renderSlots();
+      render();
+      setStatus(`You pick slot ${slot + 1}`);
+    }
+
+    function modelPoolForManager(manager, used) {
+      const seen = new Set();
+      const pushUnique = (items, out) => {
+        (items || []).forEach((pick) => {
+          const pid = String(pick.player_id || '');
+          if (!pid || used.has(pid) || seen.has(pid)) return;
+          seen.add(pid);
+          out.push(pick);
+        });
+      };
+      const out = [];
+      if (manager === state.myUserId) pushUnique(state.mock.my_picks || [], out);
+      pushUnique((state.mock.picks || []).filter((pick) => pick.manager_user_id === manager), out);
+      pushUnique(state.mock.picks || [], out);
+      return out;
+    }
+
+    function nextModelPickForManager(manager, used) {
+      return modelPoolForManager(manager, used)[0] || null;
+    }
+
     function availablePicks() {
-      const used = new Set(state.taken.map((pick) => pick.player_id));
-      return (state.mock.picks || []).filter((pick) => !used.has(pick.player_id));
+      const used = new Set(state.taken.map((pick) => String(pick.player_id)));
+      const manager = state.order.length ? managerForPick(state.taken.length) : state.myUserId;
+      return modelPoolForManager(manager, used);
+    }
+
+    function addPick(rawPick) {
+      if (!rawPick || !state.order.length || state.taken.length >= totalPicks()) return false;
+      const idx = state.taken.length;
+      const manager = managerForPick(idx);
+      const { round, pick } = roundPickForIndex(idx);
+      state.taken.push({
+        ...rawPick,
+        overall: idx + 1,
+        round,
+        pick,
+        manager_user_id: manager,
+        manager_name: managerName(manager)
+      });
+      return true;
     }
 
     function draftSelectedPlayer() {
       if (!state.order.length) setDraftFromSlots();
+      const manager = managerForPick(state.taken.length);
+      if (manager !== state.myUserId) {
+        setStatus('Opponent on clock. Use Auto.', false);
+        return;
+      }
       const pid = $('pickSelect').value;
       const pick = availablePicks().find((item) => item.player_id === pid);
       if (!pick) return;
-      const idx = state.taken.length;
-      const manager = managerForPick(idx);
-      const teams = state.order.length;
-      state.taken.push({
-        ...pick,
-        overall: idx + 1,
-        round: Math.floor(idx / teams) + 1,
-        pick: (idx % teams) + 1,
-        manager_user_id: manager,
-        manager_name: managerName(manager)
-      });
+      addPick(pick);
       render();
+      setStatus('Pick made');
+    }
+
+    function autoOnePick({ silent = false } = {}) {
+      if (!state.order.length) setDraftFromSlots();
+      const manager = managerForPick(state.taken.length);
+      if (!manager || state.taken.length >= totalPicks()) return false;
+      if (manager === state.myUserId && !silent) {
+        setStatus('Your pick is up', true);
+        return false;
+      }
+      const used = new Set(state.taken.map((pick) => String(pick.player_id)));
+      const pick = nextModelPickForManager(manager, used);
+      if (!pick) return false;
+      addPick(pick);
+      if (!silent) {
+        render();
+        setStatus(`Auto picked for ${managerName(manager)}`);
+      }
+      return true;
+    }
+
+    function simUntilMine() {
+      if (!state.order.length) setDraftFromSlots();
+      let count = 0;
+      while (
+        state.taken.length < totalPicks()
+        && managerForPick(state.taken.length) !== state.myUserId
+        && count < totalPicks()
+      ) {
+        if (!autoOnePick({ silent: true })) break;
+        count += 1;
+      }
+      render();
+      setStatus(count ? `Simmed ${count} model picks` : 'Your pick is up');
     }
 
     function renderPickSelect() {
-      const used = new Set(state.taken.map((pick) => pick.player_id));
-      const available = (state.mock.picks || []).filter((pick) => !used.has(pick.player_id));
+      const manager = state.order.length ? managerForPick(state.taken.length) : state.myUserId;
+      const available = availablePicks();
       $('pickSelect').innerHTML = available.map((pick) => (
         `<option value="${esc(pick.player_id)}">${esc(pick.name)} · ${esc(pick.position || '-')} ${esc(pick.team || '')}</option>`
       )).join('');
       $('availableCount').textContent = `${available.length} avail`;
+      $('draftPlayer').disabled = manager !== state.myUserId;
     }
 
     function renderClock() {
@@ -975,15 +1126,16 @@
 
     function renderQueue() {
       const items = [];
-      for (let idx = state.taken.length; idx < Math.min(state.taken.length + 8, state.order.length * 16); idx += 1) {
+      for (let idx = state.taken.length; idx < Math.min(state.taken.length + 8, totalPicks()); idx += 1) {
         const manager = managerForPick(idx);
-        items.push({ idx, manager });
+        const slot = roundPickForIndex(idx);
+        items.push({ idx, manager, slot });
       }
-      $('queue').innerHTML = items.map(({ idx, manager }) => `
+      $('queue').innerHTML = items.map(({ idx, manager, slot }) => `
         <div class="item ${manager === state.myUserId ? 'mine' : ''}">
           <div>
             <div class="player">${esc(managerName(manager))}</div>
-            <div class="sub">#${idx + 1} · R${Math.floor(idx / state.order.length) + 1}.${(idx % state.order.length) + 1}</div>
+            <div class="sub">#${idx + 1} · R${slot.round}.${slot.pick}</div>
           </div>
           <span class="tag ${manager === state.myUserId ? 'green' : 'blue'}">${manager === state.myUserId ? 'you' : 'next'}</span>
         </div>
@@ -991,22 +1143,29 @@
     }
 
     function renderMyPicks() {
-      $('myPicks').innerHTML = (state.mock.my_picks || []).map((pick) => `
+      const actual = state.taken.filter((pick) => pick.manager_user_id === state.myUserId);
+      const used = new Set(state.taken.map((pick) => String(pick.player_id)));
+      const projected = (state.mock.my_picks || []).filter((pick) => !used.has(String(pick.player_id)));
+      $('myPicks').innerHTML = [
+        ...actual.map((pick) => ({ ...pick, actual: true })),
+        ...projected.map((pick) => ({ ...pick, actual: false }))
+      ].map((pick) => `
         <div class="item">
           <div>
             <div class="sub">#${pick.overall} · R${pick.round}.${pick.pick}</div>
             ${playerLine(pick)}
             ${tags((pick.reason || []).slice(0, 3), 'blue')}
           </div>
-          <span class="tag green">${Number(pick.score || 0).toFixed(2)}</span>
+          <span class="tag ${pick.actual ? 'green' : 'blue'}">${pick.actual ? 'made' : Number(pick.score || 0).toFixed(2)}</span>
         </div>
-      `).join('');
+      `).join('') || '<div class="empty">No picks yet</div>';
     }
 
     function renderBoard() {
       const takenByOverall = new Map(state.taken.map((pick) => [pick.overall, pick]));
       const teams = state.order.length || (state.mock.draft_order || []).length || 10;
       const rounds = Number(state.mock.settings?.rounds || 16);
+      const previewUsed = new Set(state.taken.map((pick) => String(pick.player_id)));
       const headers = state.order.map((uid, index) => `
         <div class="grid-head ${uid === managerForPick(state.taken.length) ? 'active' : ''}">
           <div class="slot">${index + 1}</div>
@@ -1017,10 +1176,13 @@
       for (let round = 1; round <= rounds; round += 1) {
         for (let col = 0; col < teams; col += 1) {
           const overall = ((round - 1) * teams) + (round % 2 === 1 ? col + 1 : teams - col);
-          const templatePick = (state.mock.picks || [])[overall - 1] || { overall, round, pick: col + 1 };
-          const pick = takenByOverall.get(overall) || templatePick;
           const taken = takenByOverall.has(overall);
-          const manager = taken ? pick.manager_user_id : managerForPick(overall - 1);
+          const manager = taken ? takenByOverall.get(overall).manager_user_id : managerForPick(overall - 1);
+          const templatePick = taken
+            ? takenByOverall.get(overall)
+            : (nextModelPickForManager(manager, previewUsed) || { overall, round, pick: col + 1 });
+          const pick = takenByOverall.get(overall) || templatePick;
+          if (!taken && pick.player_id) previewUsed.add(String(pick.player_id));
           const mine = manager === state.myUserId;
           const isNext = overall === state.taken.length + 1;
           cells.push(`
@@ -1054,6 +1216,10 @@
     }
 
     function renderBacktest() {
+      if (!state.backtest) {
+        $('backtest').innerHTML = '<div class="empty">No backtest loaded</div>';
+        return;
+      }
       const target = state.backtest.target || {};
       const outcome = state.backtest.outcome || {};
       const achieved = !!target.achieved;
@@ -1071,6 +1237,37 @@
             ], achieved ? 'green' : 'gold')}
           </div>
           <span class="tag ${achieved ? 'green' : 'gold'}">${achieved ? 'validated' : 'watch'}</span>
+        </div>
+      `;
+    }
+
+    function renderEvaluation() {
+      if (!state.evaluation) {
+        $('evaluation').innerHTML = '<div class="empty">No holdout evaluation loaded</div>';
+        return;
+      }
+      const split = state.evaluation.split || {};
+      const counts = state.evaluation.counts || {};
+      const model = state.evaluation.model || {};
+      const baseline = state.evaluation.baseline_adp || {};
+      const hit = model.hit_at_k || {};
+      const posHit = model.position_hit_at_k || {};
+      const baseHit = baseline.hit_at_k || {};
+      $('evalPill').textContent = `${counts.total_scored_picks || 0} picks`;
+      $('evaluation').innerHTML = `
+        <div class="item">
+          <div>
+            <div class="player">${Number(model.mrr || 0).toFixed(3)} MRR</div>
+            <div class="sub">held out ${esc((split.test_seasons || []).join(', ') || 'latest')} · ${split.test_draft_count || 0} drafts</div>
+            ${tags([
+              `Hit@1 ${Number(hit[1] || hit['1'] || 0).toFixed(2)}`,
+              `Hit@5 ${Number(hit[5] || hit['5'] || 0).toFixed(2)}`,
+              `Pos@3 ${Number(posHit[3] || posHit['3'] || 0).toFixed(2)}`,
+              `ADP@5 ${Number(baseHit[5] || baseHit['5'] || 0).toFixed(2)}`,
+              `coverage ${Number(model.coverage || 0).toFixed(2)}`
+            ], 'blue')}
+          </div>
+          <span class="tag green">no leak</span>
         </div>
       `;
     }
@@ -1098,12 +1295,14 @@
       renderMyPicks();
       renderBoard();
       renderBacktest();
+      renderEvaluation();
       setView(state.view);
     }
 
     async function boot(data) {
       state.mock = data.mock;
       state.backtest = data.backtest;
+      state.evaluation = data.evaluation || null;
       state.order = (state.mock.draft_order || []).map((item) => item.user_id);
       state.myUserId = state.mock.my_user_id;
       renderSlots();
@@ -1127,12 +1326,20 @@
       if (event.key === 'Enter') $('unlockBtn').click();
     });
     $('setDraft').addEventListener('click', setDraftFromSlots);
+    $('randomizeSlots').addEventListener('click', randomizeSlots);
+    $('myTeam').addEventListener('change', () => {
+      state.myUserId = $('myTeam').value || state.mock.my_user_id;
+      renderSlots();
+      render();
+    });
     $('resetDraft').addEventListener('click', () => {
       state.taken = [];
       renderSlots();
       setDraftFromSlots();
     });
     $('draftPlayer').addEventListener('click', draftSelectedPlayer);
+    $('autoOne').addEventListener('click', () => autoOnePick());
+    $('simToMe').addEventListener('click', simUntilMine);
     $('undoPick').addEventListener('click', () => {
       state.taken.pop();
       render();
