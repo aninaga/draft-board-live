@@ -1185,8 +1185,9 @@
           if (!taken && pick.player_id) previewUsed.add(String(pick.player_id));
           const mine = manager === state.myUserId;
           const isNext = overall === state.taken.length + 1;
+          const why = [pick.algorithm || '', ...(pick.reason || [])].filter(Boolean).join(' · ');
           cells.push(`
-            <div class="grid-cell ${posClass(pick.position)} ${mine ? 'mine' : ''} ${taken ? 'taken' : ''} ${isNext ? 'next' : ''}" data-overall="${overall}">
+            <div class="grid-cell ${posClass(pick.position)} ${mine ? 'mine' : ''} ${taken ? 'taken' : ''} ${isNext ? 'next' : ''}" data-overall="${overall}" title="${esc(why)}">
               <div class="meta-line"><span>#${overall}</span><span>R${round}</span></div>
               <div>
                 <div class="pos-row">
